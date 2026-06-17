@@ -38,7 +38,10 @@ EDUCATION_DATE_ORDER = "education_date_order"
 # contradicts itself, full stop) vs. a soft statistical anomaly (could in
 # principle be a legitimate edge case). Any hard flag alone is enough to
 # call a profile a honeypot; soft flags need to co-occur.
-HARD_TYPES = {DATE_MATH_MISMATCH, OVERLAPPING_ROLES, MULTIPLE_CURRENT_ROLES, EDUCATION_DATE_ORDER}
+HARD_TYPES = {
+    DATE_MATH_MISMATCH, OVERLAPPING_ROLES, MULTIPLE_CURRENT_ROLES,
+    EDUCATION_DATE_ORDER, SKILL_ZERO_USAGE,
+}
 
 
 def _parse_date(d):
@@ -61,19 +64,25 @@ def detect_honeypot(candidate: dict) -> dict:
     education = candidate.get("education", [])
     skills = candidate.get("skills", [])
 
-    # --- Check 1: expert/advanced proficiency with ~zero time invested ---
+    # --- Check 1: expert/advanced proficiency with zero time invested ---
+    # Diagnostic against the real pool showed this is a clean bimodal
+    # signal: candidates have either 0 such skills, or exactly 3-5, with
+    # nothing in between -- and endorsements are NOT necessarily zero (the
+    # honeypot generator apparently gives these skills some endorsements
+    # to be "subtly impossible" rather than blatantly empty, per the
+    # bundle's own description). Requiring endorsements==0 here originally
+    # filtered out the entire real cluster -- dropped that condition.
     zero_duration_high_proficiency = [
         s for s in skills
         if s.get("proficiency") in ("expert", "advanced")
-        and s.get("duration_months", 0) <= 1
-        and s.get("endorsements", 0) == 0
+        and s.get("duration_months", 0) == 0
     ]
     if len(zero_duration_high_proficiency) >= 3:
         flags.append({
             "type": SKILL_ZERO_USAGE,
             "message": (
                 f"{len(zero_duration_high_proficiency)} skills listed as expert/advanced "
-                f"with ~0 months of use and 0 endorsements"
+                f"with 0 months of use"
             ),
         })
 
