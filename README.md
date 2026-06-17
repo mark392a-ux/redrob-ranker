@@ -115,7 +115,27 @@ seconds wall-clock, ~3.5GB peak memory. Comfortably inside the 5-minute /
   real examples once you have visibility into the actual 100K pool's
   vocabulary (company names, title variants, skill naming conventions).
 - Honeypot heuristics are validated structurally (date math, internal
-  consistency) but haven't been validated against real honeypot examples,
-  since the 50-candidate sample didn't contain any (expected: ~80/100K is
-  too sparse to show up in a random 50-sample). Worth spot-checking
-  against the real pool once available.
+  consistency) and confirmed against the real 100K pool: 61 candidates
+  flagged (40 yoe_mismatch, 35 date_math_mismatch, 21 skill_zero_usage, 18
+  education_timeline_impossible — these overlap, since one candidate can
+  trigger multiple checks). Four additional hypotheses were tested via
+  `diagnose_extra.py` and deliberately *not* turned into filters, because
+  their base rates on the real pool were far too high to be the ~80-in-100K
+  honeypot signal: salary min>max (18,865 candidates, 18.9%), skill
+  duration exceeding total career history (13,581 candidates across
+  buckets), skill duration exceeding stated years_of_experience (13,449
+  candidates), and last_active_date before signup_date (7,496 candidates,
+  7.5%). These are evidently just noise in how the synthetic profiles were
+  generated, not a deliberate trap — filtering on them would have
+  disqualified a large fraction of legitimate candidates instead of
+  catching honeypots. `multiple_current_roles` and `overlapping_roles`
+  stayed at exactly 0 across the full pool, suggesting those particular
+  honeypot sub-types (if they exist at all) aren't represented in this
+  dataset's construction.
+- The remaining gap (61 of ~80 caught) is accepted as a practical
+  stopping point rather than chased further: the actual disqualification
+  risk is the honeypot rate *within the top 100*, not total detection
+  rate across the pool, and the top 100 here is already cleanly dominated
+  by on-target titles with coherent career narratives — recommend a
+  manual spot-check of the final top 100 against known honeypot patterns
+  as a last safety net before submitting.
