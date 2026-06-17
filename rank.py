@@ -31,6 +31,11 @@ def main():
     parser.add_argument("--jd", default=str(Path(__file__).resolve().parent / "data" / "job_description.txt"))
     parser.add_argument("--out", required=True)
     parser.add_argument("--top", type=int, default=100)
+    parser.add_argument(
+        "--debug-honeypots",
+        default=None,
+        help="Optional path to dump flagged honeypot candidate_ids + reasons (no other candidate data).",
+    )
     args = parser.parse_args()
 
     t0 = time.time()
@@ -49,6 +54,32 @@ def main():
         f"in {time.time() - t1:.1f}s",
         file=sys.stderr,
     )
+
+    # --- Diagnostic: which check fired, across all flagged candidates ---
+    # This is the cheap, shareable signal -- aggregated counts, not raw
+    # candidate data -- that lets tuning happen without moving the 465MB
+    # pool around.
+    flag_type_counts = {}
+    for c in candidates:
+        result = honeypot_results[c["candidate_id"]]
+        if result["is_honeypot"]:
+            for flag_text in result["flags"]:
+                key = flag_text.split(":")[0] if ":" in flag_text else flag_text[:40]
+                flag_type_counts[key] = flag_type_counts.get(key, 0) + 1
+    if flag_type_counts:
+        print("       Honeypot flag breakdown:", file=sys.stderr)
+        for k, v in sorted(flag_type_counts.items(), key=lambda x: -x[1])[:10]:
+            print(f"         {v:5d}  {k}", file=sys.stderr)
+
+    if args.debug_honeypots:
+        with open(args.debug_honeypots, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["candidate_id", "flag_count", "flags"])
+            for c in candidates:
+                result = honeypot_results[c["candidate_id"]]
+                if result["is_honeypot"]:
+                    writer.writerow([c["candidate_id"], result["score"], " | ".join(result["flags"])])
+        print(f"       Honeypot details written to {args.debug_honeypots}", file=sys.stderr)
 
     # --- Text relevance, fit once over the whole surviving pool ---
     t2 = time.time()
@@ -88,6 +119,24 @@ def main():
             reasoning = build_reasoning(c, result)
             writer.writerow([c["candidate_id"], rank, round(result["final_score"], 4), reasoning])
     print(f"[5/5] Wrote {args.out} in {time.time() - t4:.1f}s", file=sys.stderr)
+
+    # --- Diagnostic: sanity-check the shape of the top 100 without dumping
+    # raw candidate data -- title distribution and score spread are the two
+    # things that reveal whether the ranking is sane or degenerate.
+    top_titles = {}
+    for c, _ in top_n:
+        title = c["profile"].get("current_title", "Unknown")
+        top_titles[title] = top_titles.get(title, 0) + 1
+    scores = [round(result["final_score"], 4) for _, result in top_n]
+    print("\n       Top-100 title distribution:", file=sys.stderr)
+    for title, count in sorted(top_titles.items(), key=lambda x: -x[1])[:12]:
+        print(f"         {count:3d}  {title}", file=sys.stderr)
+    if scores:
+        print(
+            f"       Top-100 score range: max={max(scores):.4f} "
+            f"min={min(scores):.4f} median={sorted(scores)[len(scores)//2]:.4f}",
+            file=sys.stderr,
+        )
 
     total = time.time() - t0
     print(f"\nTotal wall-clock time: {total:.1f}s (budget: 300s)", file=sys.stderr)
