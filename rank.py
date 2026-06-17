@@ -65,7 +65,12 @@ def main():
     print(f"[4/5] Scored {len(scored)} candidates in {time.time() - t3:.1f}s", file=sys.stderr)
 
     # --- Rank, tie-break by candidate_id ascending per spec section 3 ---
-    scored.sort(key=lambda pair: (-pair[1]["final_score"], pair[0]["candidate_id"]))
+    # Sort on the *rounded* score, not the raw float -- ties are defined by
+    # what actually appears in the CSV (4 decimal places), not by precision
+    # we then throw away. Sorting on the raw float let two candidates that
+    # round to the same displayed score land in candidate_id-descending
+    # order, which the validator correctly flags.
+    scored.sort(key=lambda pair: (-round(pair[1]["final_score"], 4), pair[0]["candidate_id"]))
     top_n = scored[: args.top]
 
     if len(top_n) < args.top:
