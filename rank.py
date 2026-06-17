@@ -63,9 +63,8 @@ def main():
     for c in candidates:
         result = honeypot_results[c["candidate_id"]]
         if result["is_honeypot"]:
-            for flag_text in result["flags"]:
-                key = flag_text.split(":")[0] if ":" in flag_text else flag_text[:40]
-                flag_type_counts[key] = flag_type_counts.get(key, 0) + 1
+            for flag in result["flags"]:
+                flag_type_counts[flag["type"]] = flag_type_counts.get(flag["type"], 0) + 1
     if flag_type_counts:
         print("       Honeypot flag breakdown:", file=sys.stderr)
         for k, v in sorted(flag_type_counts.items(), key=lambda x: -x[1])[:10]:
@@ -74,11 +73,13 @@ def main():
     if args.debug_honeypots:
         with open(args.debug_honeypots, "w", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
-            writer.writerow(["candidate_id", "flag_count", "flags"])
+            writer.writerow(["candidate_id", "flag_count", "flag_types", "details"])
             for c in candidates:
                 result = honeypot_results[c["candidate_id"]]
                 if result["is_honeypot"]:
-                    writer.writerow([c["candidate_id"], result["score"], " | ".join(result["flags"])])
+                    types = ",".join(fl["type"] for fl in result["flags"])
+                    details = " | ".join(fl["message"] for fl in result["flags"])
+                    writer.writerow([c["candidate_id"], result["score"], types, details])
         print(f"       Honeypot details written to {args.debug_honeypots}", file=sys.stderr)
 
     # --- Text relevance, fit once over the whole surviving pool ---
