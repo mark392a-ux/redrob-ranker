@@ -27,7 +27,15 @@ from src.reasoning import build_reasoning
 BASE_DIR = Path(__file__).resolve().parent
 SAMPLE_PATH = BASE_DIR / "sample_candidates.jsonl"
 JD_PATH = BASE_DIR / "data" / "job_description.txt"
-GITHUB_REPO_URL = "https://github.com/YOUR_USERNAME/redrob-ranker"  # TODO: update once pushed
+GITHUB_REPO_URL = "https://github.com/mark392a-ux/redrob-ranker"
+
+# This Space is a small-sample sandbox per the hackathon's spec (Section
+# 10.5) -- it's meant to prove the code runs end-to-end, not to reproduce
+# the full 100K-scale evaluation (that's what the timing/memory benchmark
+# in the GitHub README documents). Capping uploads here avoids someone
+# accidentally uploading the real candidates.jsonl and hanging the only
+# worker this free-tier Space has.
+MAX_CANDIDATES = 500
 
 
 def _load_jsonl_or_json(path: str) -> list[dict]:
@@ -43,13 +51,24 @@ def run_ranking(uploaded_file, top_n):
     if uploaded_file is not None:
         try:
             candidates = _load_jsonl_or_json(uploaded_file.name)
-            source_note = f"Loaded {len(candidates)} candidates from your upload."
         except Exception as e:
             return (
                 pd.DataFrame(),
                 f"Could not parse the uploaded file: {e}",
                 "",
             )
+        if len(candidates) > MAX_CANDIDATES:
+            original_count = len(candidates)
+            candidates = candidates[:MAX_CANDIDATES]
+            source_note = (
+                f"Uploaded file had {original_count} candidates -- this sandbox is "
+                f"intentionally capped at {MAX_CANDIDATES} for a quick interactive demo "
+                f"(per the hackathon's 'small sample' sandbox requirement). Truncated to "
+                f"the first {MAX_CANDIDATES}. The full 100K-scale run, with timing and "
+                f"memory benchmarks, is documented in the GitHub repo linked below."
+            )
+        else:
+            source_note = f"Loaded {len(candidates)} candidates from your upload."
     else:
         candidates = _load_jsonl_or_json(str(SAMPLE_PATH))
         source_note = f"Using the bundled {len(candidates)}-candidate sample (no file uploaded)."
