@@ -1,0 +1,39 @@
+Senior AI Engineer, Founding Team. Own the intelligence layer of Redrob's
+product: ranking, retrieval, and matching systems that decide what
+recruiters see when they search for candidates.
+
+Production experience with embeddings-based retrieval systems:
+sentence-transformers, OpenAI embeddings, BGE, E5. Handled embedding drift,
+index refresh, retrieval-quality regression in production.
+
+Production experience with vector databases or hybrid search
+infrastructure: Pinecone, Weaviate, Qdrant, Milvus, OpenSearch,
+Elasticsearch, FAISS.
+
+Strong Python, production code quality.
+
+Hands-on experience designing evaluation frameworks for ranking systems:
+NDCG, MRR, MAP, offline-to-online correlation, A/B test interpretation.
+
+Nice to have: LLM fine-tuning (LoRA, QLoRA, PEFT), learning-to-rank models
+(XGBoost-based or neural), HR-tech or recruiting tech or marketplace
+products, distributed systems, large-scale inference optimization,
+open-source contributions in AI/ML.
+
+Ideal candidate: 6-8 years total experience, 4-5 years in applied ML/AI
+roles at product companies, not pure services. Has shipped at least one
+end-to-end ranking, search, or recommendation system to real users at
+meaningful scale. Has strong opinions about retrieval (hybrid vs dense),
+evaluation (offline vs online), and LLM integration (when to fine-tune vs
+prompt) and can defend them with reference to systems actually built.
+Located in or willing to relocate to Noida or Pune, also open to
+Hyderabad, Mumbai, Delhi NCR.
+
+Disqualifiers: pure research-only career with no production deployment.
+Only recent (under 12 months) LangChain-to-OpenAI-API experience with no
+pre-LLM-era production ML. Senior engineer who hasn't written production
+code in 18+ months due to moving into pure architecture or tech-lead
+roles. Entire career at IT-services/consulting firms (TCS, Infosys, Wipro,
+Accenture, Cognizant, Capgemini) with no product company experience.
+Primary expertise in computer vision, speech, or robotics without
+significant NLP/IR exposure.

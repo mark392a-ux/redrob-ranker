@@ -1,3 +1,16 @@
+"""
+Final scoring: combine rule-based fit components + TF-IDF text relevance
+into a base "fit score", subtract disqualifier penalties, then apply the
+behavioral multiplier on top.
+
+    fit_score    = weighted_sum(title, text, skills, experience, production,
+                                 location, education) - disqualifier_penalty
+    final_score  = fit_score * behavioral_multiplier
+
+Honeypots are filtered separately (see honeypot.py) before this even runs --
+this module assumes the candidate has already passed that check.
+"""
+
 from . import config
 from . import rule_features as rf
 from .behavioral import behavioral_multiplier

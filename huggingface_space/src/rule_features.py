@@ -1,3 +1,11 @@
+"""
+Rule-based features extracted directly from the JD's own stated criteria
+(config.py). These exist because TF-IDF similarity alone can't distinguish
+"this person's title and career history say they did this job" from "this
+person's skills section mentions the same words" -- and the JD explicitly
+calls out that distinction as the trap.
+"""
+
 import math
 from . import config
 
@@ -15,6 +23,10 @@ def _any_term(text: str, terms: list[str]) -> bool:
 
 
 def title_match_score(candidate: dict) -> float:
+    """1.0 if current title (or recent past titles) clearly match the target
+    role family; 0.0 if it clearly matches an off-target title; 0.5 if
+    ambiguous/unseen. This is the decisive signal against keyword-stuffer
+    traps -- an HR Manager with ten AI skills listed still scores low here."""
     titles = [candidate["profile"].get("current_title", "").lower()]
     titles += [ch.get("title", "").lower() for ch in candidate.get("career_history", [])[:2]]
     combined = " ".join(titles)
@@ -27,11 +39,16 @@ def title_match_score(candidate: dict) -> float:
     if off_target and not on_target:
         return 0.0
     if on_target and off_target:
-        return 0.4
-    return 0.5
+        return 0.4  # mixed signal, e.g. a title change mid-career
+    return 0.5  # neither list matched, stay neutral rather than penalize
 
 
 def skills_trust_score(candidate: dict) -> float:
+    """Weighted match against REQUIRED_SKILL_GROUPS + NICE_TO_HAVE_TERMS,
+    where each matching skill is discounted if it shows little real usage.
+    A skill listed as 'expert' with 0 months duration and 0 endorsements
+    contributes almost nothing -- this directly fights lazy keyword
+    stuffing in the skills list, independent of the honeypot filter."""
     skill_names = {s.get("name", "").lower(): s for s in candidate.get("skills", [])}
     proficiency_weight = {"beginner": 0.3, "intermediate": 0.6, "advanced": 0.85, "expert": 1.0}
 
@@ -56,6 +73,9 @@ def skills_trust_score(candidate: dict) -> float:
 
 
 def production_signal_score(candidate: dict) -> float:
+    """Positive evidence of shipping to real users vs. research-only or
+    wrapper-only signal, per the JD's explicit 'what we mean by 5-9 years'
+    disqualifier section."""
     text = _text_blob(candidate)
     has_production = _any_term(text, config.PRODUCTION_EVIDENCE_TERMS)
     has_research_only = _any_term(text, config.RESEARCH_ONLY_TERMS) and not has_production
@@ -95,6 +115,8 @@ def education_tier_score(candidate: dict) -> float:
 
 
 def disqualifier_penalty(candidate: dict) -> tuple[float, list[str]]:
+    """Returns (total_penalty, reasons). Penalties are additive and floored
+    when applied to the final score, not here."""
     text = _text_blob(candidate)
     companies = {ch.get("company", "").lower() for ch in candidate.get("career_history", [])}
     companies.add(candidate["profile"].get("current_company", "").lower())
@@ -104,11 +126,11 @@ def disqualifier_penalty(candidate: dict) -> tuple[float, list[str]]:
 
     if companies and companies.issubset(config.CONSULTING_FIRMS):
         penalty += config.PENALTIES["consulting_only"]
-        reasons.append("career is all IT services/consulting")
+        reasons.append("entire career history is at IT-services/consulting firms")
 
     if _any_term(text, config.NON_NLP_DOMAINS) and not _any_term(text, config.NLP_IR_EVIDENCE):
         penalty += config.PENALTIES["non_nlp_domain"]
-        reasons.append("CV/speech/robotics focus, little NLP/IR signal")
+        reasons.append("primary domain is CV/speech/robotics with no NLP/IR evidence")
 
     recent_history = [ch for ch in candidate.get("career_history", []) if ch.get("is_current")]
     recent_months = recent_history[0].get("duration_months", 0) if recent_history else 0
@@ -118,10 +140,10 @@ def disqualifier_penalty(candidate: dict) -> tuple[float, list[str]]:
         and not _any_term(text, config.PRE_LLM_ML_EVIDENCE)
     ):
         penalty += config.PENALTIES["wrapper_only_recent"]
-        reasons.append("recent LLM-wrapper work only, no pre-LLM ML background")
+        reasons.append("recent (<12mo) LLM-wrapper-only experience with no pre-LLM ML background")
 
     if _any_term(text, config.RESEARCH_ONLY_TERMS) and not _any_term(text, config.PRODUCTION_EVIDENCE_TERMS):
         penalty += config.PENALTIES["research_only"]
-        reasons.append("research-only, no production deployments mentioned")
+        reasons.append("research-only career history, no production deployment evidence")
 
     return penalty, reasons

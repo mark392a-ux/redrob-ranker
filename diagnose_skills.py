@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
-"""
-Standalone diagnostic -- run this directly against candidates.jsonl.
-Prints only aggregate counts, no candidate-identifying data, so it's safe
-to paste the output back into chat.
-
-Goal: figure out what threshold actually isolates the "expert proficiency
-with near-zero usage" honeypot pattern in the real dataset, since the
-shipped skill_zero_usage check (>=3 skills, duration<=1mo, endorsements==0)
-is catching zero candidates -- almost certainly too strict, not because
-the pattern doesn't exist.
-
-Usage:
-    python diagnose_skills.py candidates.jsonl
-"""
+"""Count how often expert/advanced skills show up with near-zero duration."""
 
 import gzip
 import json
@@ -37,13 +24,11 @@ def main():
         sys.exit(1)
 
     n = 0
-    # For each candidate, how many skills are (expert or advanced) AND duration_months==0,
-    # broken out by whether endorsements==0 too, or any endorsement count.
-    per_candidate_strict = Counter()   # duration==0, endorsements==0
-    per_candidate_loose = Counter()    # duration==0, any endorsements
-    per_candidate_duration_le1 = Counter()  # duration<=1, any endorsements
+    per_candidate_strict = Counter()
+    per_candidate_loose = Counter()
+    per_candidate_duration_le1 = Counter()
     proficiency_dist = Counter()
-    duration_for_high_prof = Counter()  # histogram of duration_months, only for expert/advanced skills
+    duration_for_high_prof = Counter()
 
     for c in load(sys.argv[1]):
         n += 1
@@ -56,7 +41,7 @@ def main():
             dur = s.get("duration_months", 0)
             end = s.get("endorsements", 0)
             if prof in ("expert", "advanced"):
-                duration_for_high_prof[min(dur, 24)] += 1  # bucket 24+ together
+                duration_for_high_prof[min(dur, 24)] += 1
                 if dur == 0:
                     loose_count += 1
                     if end == 0:
@@ -77,7 +62,7 @@ def main():
     for k in sorted(duration_for_high_prof):
         print(f"  {k:3d} months: {duration_for_high_prof[k]}")
 
-    print("\nCandidates by count of (expert/advanced, duration==0, endorsements==0) skills [STRICT, current rule]:")
+    print("\nCandidates by count of (expert/advanced, duration==0, endorsements==0) skills [STRICT]:")
     for k in sorted(per_candidate_strict):
         print(f"  {k} such skills: {per_candidate_strict[k]} candidates")
 
