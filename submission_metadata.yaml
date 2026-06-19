@@ -1,0 +1,90 @@
+# Redrob Hackathon — Submission Metadata
+
+# ============================================================================
+# Team identity
+# ============================================================================
+team_name: "Bharat_Vani"
+
+primary_contact:
+  name: "Ankit Kumar Mishra"
+  email: "davankitmishra@gmail.com"
+  phone: "+91-9871477872"
+
+team_members:
+  - name: "Ankit Kumar Mishra"
+    email: "davankitmishra@gmail.com"
+    role: "Solo participant"
+
+# ============================================================================
+# Code and reproducibility
+# ============================================================================
+github_repo: "https://github.com/mark392a-ux/redrob-ranker"
+
+sandbox_link: "https://huggingface.co/spaces/Pantheon00/redrob-ranker"
+
+reproduce_command: "python rank.py --candidates ./candidates.jsonl --out ./Bharat_Vani.csv"
+
+# ============================================================================
+# Compute environment
+# ============================================================================
+compute:
+  platform: "Dell Inspiron 5406 2-in-1"
+  cpu_cores: 4
+  ram_gb: 8
+  python_version: "3.14"   # confirm with: python --version
+  os: "Windows 11"
+  uses_gpu_for_inference: false
+  has_network_during_ranking: false
+  pre_computation_required: false
+  pre_computation_time_minutes: 0
+
+# ============================================================================
+# AI tools declaration
+# ============================================================================
+ai_tools_used:
+  - "Claude"
+  - "Grok"
+
+ai_usage_summary: |
+  Used Claude (Anthropic) extensively for architecture design, implementation,
+  debugging, and honeypot-detection threshold tuning. Detection thresholds were
+  derived empirically from diagnostic scripts run against the real candidate
+  pool, not guessed. Consulted Grok for additional improvement ideas; suggestions
+  were evaluated against real data -- some rejected due to bugs found on review,
+  others rejected because their base rates on the real 100K pool (18-26%) were
+  far too high to be the ~80-in-100K honeypot signal (documented in README).
+  No candidate data was sent to any LLM at ranking runtime. All scoring and
+  reasoning generation is local, deterministic Python with no network calls
+  during ranking.
+
+# ============================================================================
+# Approach summary
+# ============================================================================
+methodology_summary: |
+  Hybrid ranker combining TF-IDF cosine similarity (JD vs candidate text) with
+  rule-based features derived directly from the JD's stated requirements: title
+  match (decisive anti-keyword-stuffing signal), skills trust (weighted by
+  proficiency x duration x endorsements so a zero-usage "expert" skill counts
+  for almost nothing), production-vs-research signal, experience-band fit,
+  location, and education tier. JD-specific disqualifiers (consulting-only
+  career, CV/speech domain without NLP, recent LLM-wrapper-only experience,
+  research-only background) are subtracted as explicit penalties. A behavioral
+  multiplier from redrob_signals (recency, recruiter response rate, interview
+  completion, notice period) is applied multiplicatively on top. Honeypots are
+  screened before scoring via structural-impossibility checks: date-math
+  inconsistency, years-of-experience vs career-history mismatch, zero-usage
+  expert skills (threshold tuned empirically against the real pool), and
+  education timeline impossibility. 61 of ~80 expected honeypots caught.
+  Reasoning text is template-generated from scorer-extracted features with no
+  LLM call, satisfying the no-network ranking constraint and eliminating
+  hallucination risk. Runtime: ~55s, ~3.5GB RAM for 100K candidates on CPU.
+
+# ============================================================================
+# Declarations
+# ============================================================================
+declarations:
+  read_submission_spec: true
+  code_is_original_work: true
+  no_collusion: true
+  honeypot_check_done: true
+  reproduction_tested: true
