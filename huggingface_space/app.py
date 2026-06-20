@@ -5,13 +5,10 @@ Loads either the bundled 50-candidate sample or a user-uploaded small
 JSON/JSONL file, runs the real ranking pipeline (the same code as
 rank.py / the GitHub repo, not a reimplementation), and displays the
 ranked output, honeypot screening, and timing in the browser.
-
-This exists to satisfy the hackathon's required "sandbox" submission item:
-a hosted environment where a reviewer can run the ranker on a small
-sample without setting up a local Python environment.
 """
 
 import json
+import tempfile
 import time
 from pathlib import Path
 
@@ -28,14 +25,8 @@ BASE_DIR = Path(__file__).resolve().parent
 SAMPLE_PATH = BASE_DIR / "sample_candidates.jsonl"
 JD_PATH = BASE_DIR / "data" / "job_description.txt"
 GITHUB_REPO_URL = "https://github.com/mark392a-ux/redrob-ranker"
-
-# This Space is a small-sample sandbox per the hackathon's spec (Section
-# 10.5) -- it's meant to prove the code runs end-to-end, not to reproduce
-# the full 100K-scale evaluation (that's what the timing/memory benchmark
-# in the GitHub README documents). Capping uploads here avoids someone
-# accidentally uploading the real candidates.jsonl and hanging the only
-# worker this free-tier Space has.
 MAX_CANDIDATES = 500
+JD_ROLE = "Senior AI Engineer — Retrieval, Ranking & Embeddings (Founding Team)"
 
 
 def _load_jsonl_or_json(path: str) -> list[dict]:
@@ -52,26 +43,20 @@ def run_ranking(uploaded_file, top_n):
         try:
             candidates = _load_jsonl_or_json(uploaded_file.name)
         except Exception as e:
-            return (
-                pd.DataFrame(),
-                f"Could not parse the uploaded file: {e}",
-                "",
-            )
+            return pd.DataFrame(), f"❌ Could not parse file: {e}", "", None
+
         if len(candidates) > MAX_CANDIDATES:
             original_count = len(candidates)
             candidates = candidates[:MAX_CANDIDATES]
             source_note = (
-                f"Uploaded file had {original_count} candidates -- this sandbox is "
-                f"intentionally capped at {MAX_CANDIDATES} for a quick interactive demo "
-                f"(per the hackathon's 'small sample' sandbox requirement). Truncated to "
-                f"the first {MAX_CANDIDATES}. The full 100K-scale run, with timing and "
-                f"memory benchmarks, is documented in the GitHub repo linked below."
+                f"📁 Uploaded {original_count} candidates — capped at {MAX_CANDIDATES} "
+                f"for this sandbox demo. Full 100K benchmark: see GitHub repo."
             )
         else:
-            source_note = f"Loaded {len(candidates)} candidates from your upload."
+            source_note = f"📁 Loaded **{len(candidates)}** candidates from your upload."
     else:
         candidates = _load_jsonl_or_json(str(SAMPLE_PATH))
-        source_note = f"Using the bundled {len(candidates)}-candidate sample (no file uploaded)."
+        source_note = f"📁 Using the bundled **{len(candidates)}-candidate** sample."
 
     top_n = min(int(top_n), len(candidates))
     jd_text = load_jd_text(str(JD_PATH))
@@ -102,70 +87,115 @@ def run_ranking(uploaded_file, top_n):
     rows = []
     for rank, (c, result) in enumerate(top, start=1):
         rows.append({
-            "rank": rank,
-            "candidate_id": c["candidate_id"],
-            "score": round(result["final_score"], 4),
-            "title": c["profile"].get("current_title", ""),
-            "years_exp": c["profile"].get("years_of_experience", ""),
-            "reasoning": build_reasoning(c, result),
+            "Rank": rank,
+            "Candidate ID": c["candidate_id"],
+            "Score": round(result["final_score"], 4),
+            "Title": c["profile"].get("current_title", ""),
+            "Yrs Exp": c["profile"].get("years_of_experience", ""),
+            "Company": c["profile"].get("current_company", ""),
+            "Reasoning": build_reasoning(c, result),
         })
     df = pd.DataFrame(rows)
 
-    elapsed = time.time() - t0
-    summary_lines = [
-        source_note,
-        f"Honeypot screen: {n_honeypots} flagged out of {len(candidates)} total.",
-    ]
-    if flag_type_counts:
-        breakdown = ", ".join(f"{v} {k}" for k, v in sorted(flag_type_counts.items(), key=lambda x: -x[1]))
-        summary_lines.append(f"Flag breakdown: {breakdown}")
-    summary_lines.append(f"Ranked {len(survivors)} surviving candidates in {elapsed:.2f}s (this small-sample run, not the 100K timing benchmark in the repo).")
-    summary = "\n\n".join(summary_lines)
+    # CSV export -- written fresh each run, named so it's clear this is a
+    # sandbox demo run, not the actual hackathon submission CSV (which has
+    # a different required filename/format, validated by validate_submission.py)
+    csv_path = Path(tempfile.gettempdir()) / "redrob_sandbox_ranked_output.csv"
+    df.to_csv(csv_path, index=False)
 
-    architecture = (
-        "**Pipeline:** honeypot screen → TF-IDF relevance vs the JD → rule-based "
-        "features (title match, skills trust, production-vs-research signal, "
-        "experience band, location, education) → behavioral multiplier from "
-        "redrob_signals → template-built reasoning. Full source and the "
-        "100K-scale benchmark are in the GitHub repo linked below."
+    elapsed = time.time() - t0
+
+    # Flag breakdown
+    if flag_type_counts:
+        flag_lines = " | ".join(
+            f"**{k.replace('_',' ')}**: {v}"
+            for k, v in sorted(flag_type_counts.items(), key=lambda x: -x[1])
+        )
+    else:
+        flag_lines = "none"
+
+    summary = f"""{source_note}
+
+---
+| Metric | Value |
+|--------|-------|
+| 🚨 Honeypots flagged | **{n_honeypots}** of {len(candidates)} |
+| ✅ Candidates scored | **{len(survivors)}** |
+| ⏱ Runtime | **{elapsed:.2f}s** |
+| 🏆 Showing top | **{top_n}** |
+
+**Flag types caught:** {flag_lines}"""
+
+    pipeline_note = (
+        f"**Role ranked against:** {JD_ROLE}\n\n"
+        "**Pipeline:** Honeypot screen → TF-IDF relevance vs JD → "
+        "Rule-based features (title match · skills trust · production signal · "
+        "experience band · location · education) → Behavioral multiplier "
+        "(redrob_signals) → Template reasoning.\n\n"
+        f"📦 Full source + 100K benchmark: [{GITHUB_REPO_URL}]({GITHUB_REPO_URL})"
     )
 
-    return df, summary, architecture
+    return df, summary, pipeline_note, str(csv_path)
 
+
+CSS = """
+.gr-dataframe table { font-size: 13px; }
+.gr-dataframe td:last-child { min-width: 380px; white-space: normal !important; word-wrap: break-word; }
+"""
 
 with gr.Blocks(title="Redrob Ranker Sandbox") as demo:
-    gr.Markdown(
-        f"""
-        # Redrob Hackathon Track 1 — Candidate Ranker Sandbox
 
-        Run the actual ranking pipeline (same code as the GitHub repo) on a
-        small candidate sample. Upload your own `.jsonl`/`.json` file
-        matching the challenge's candidate schema, or just click **Run** to
-        use the bundled 50-candidate sample.
+    gr.Markdown(f"""
+# 🎯 Redrob Hackathon Track 1 — Candidate Ranker Sandbox
 
-        Full source, the 100K-scale compute benchmark, and the design
-        rationale for every scoring component: [{GITHUB_REPO_URL}]({GITHUB_REPO_URL})
-        """
-    )
+> **Role:** {JD_ROLE}
+
+Upload a `.json` or `.jsonl` candidate file (up to 500), or click **Run Ranking**
+to score the bundled 50-candidate sample. The full ranking pipeline runs
+live — same code as the GitHub repo, no shortcuts.
+""")
 
     with gr.Row():
-        file_input = gr.File(label="Upload a small candidate sample (.jsonl or .json) — optional", file_types=[".json", ".jsonl"])
-        top_n_input = gr.Slider(minimum=1, maximum=50, value=20, step=1, label="Top N to show")
+        with gr.Column(scale=2):
+            file_input = gr.File(
+                label="📂 Upload candidate file (.json or .jsonl) — optional",
+                file_types=[".json", ".jsonl"]
+            )
+        with gr.Column(scale=1):
+            top_n_input = gr.Slider(
+                minimum=1, maximum=50, value=20, step=1,
+                label="Top N results to display"
+            )
 
-    run_button = gr.Button("Run Ranking", variant="primary")
+    run_button = gr.Button("🚀 Run Ranking", variant="primary", size="lg")
 
-    summary_output = gr.Markdown(label="Run summary")
-    output_table = gr.Dataframe(label="Ranked output", wrap=True)
-    architecture_output = gr.Markdown()
+    summary_output = gr.Markdown(label="Results summary")
+
+    output_table = gr.Dataframe(
+        label="📊 Ranked candidates",
+        wrap=True,
+        column_widths=["5%", "12%", "7%", "14%", "8%", "14%", "40%"]
+    )
+
+    download_button = gr.DownloadButton(
+        label="⬇️ Download ranked results (CSV)",
+        variant="secondary",
+    )
+
+    pipeline_output = gr.Markdown()
 
     run_button.click(
         fn=run_ranking,
         inputs=[file_input, top_n_input],
-        outputs=[output_table, summary_output, architecture_output],
+        outputs=[output_table, summary_output, pipeline_output, download_button],
     )
 
-    demo.load(fn=run_ranking, inputs=[file_input, top_n_input], outputs=[output_table, summary_output, architecture_output])
+    demo.load(
+        fn=run_ranking,
+        inputs=[file_input, top_n_input],
+        outputs=[output_table, summary_output, pipeline_output, download_button],
+    )
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(css=CSS)
