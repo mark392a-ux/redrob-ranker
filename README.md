@@ -3,7 +3,7 @@
 **Repo:**
 https://github.com/mark392a-ux/redrob-ranker/
 
-**Live sandbox:**
+**Live Interactive Sandbox:**
 https://pantheon00-redrob-ranker.hf.space/
 
 **Team:**
