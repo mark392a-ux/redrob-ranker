@@ -6,6 +6,14 @@
 
 Submitted by Team Bharat Vani (Ankit Mishra).
 
+## TL;DR
+
+Given 100,000 resumes and one job description, this picks the best 100
+matches — not by counting keywords, but by checking whether someone's
+actual career history matches the role, catching fake/impossible profiles
+along the way, and explaining *why* each person made the list in plain
+English. Runs in about a minute, no internet connection needed, no GPU.
+
 ## What this is
 
 A hybrid ranker for the Redrob "Intelligent Candidate Discovery & Ranking
@@ -141,6 +149,19 @@ the 5-minute budget at 100K scale and violate the network constraint.
 Building it from the same extracted features the scorer used also means
 it structurally can't hallucinate a skill the candidate doesn't have,
 which is exactly what Stage 4's "no hallucination" check looks for.
+
+## Testing
+
+```bash
+pytest tests/ -v
+```
+
+19 tests covering `honeypot.py` (every check type, both the positive
+"does it fire on an impossible profile" case and the negative "does it
+stay silent on a clean profile" case — a honeypot filter that's too
+trigger-happy disqualifies real candidates, which matters as much as
+catching fakes) and `scorer.py` (weight-sum sanity, the core anti-keyword-
+stuffing guarantee, disqualifier penalties, and score bounds).
 
 ## Live sandbox
 
