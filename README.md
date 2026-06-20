@@ -4,6 +4,8 @@
 **Live sandbox:** https://huggingface.co/spaces/Pantheon00/redrob-ranker
 **Team:** Bharat_Vani (solo)
 
+Submitted by Team Bharat Vani (Ankit Mishra).
+
 ## What this is
 
 A hybrid ranker for the Redrob "Intelligent Candidate Discovery & Ranking
