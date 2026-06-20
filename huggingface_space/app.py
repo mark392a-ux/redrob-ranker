@@ -20,7 +20,8 @@ from src.honeypot import detect_honeypot
 from src.text_features import candidate_text, build_relevance_scorer
 from src.scorer import score_candidate
 from src.reasoning import build_reasoning
-
+import time
+print(f"APP STARTED AT: {time.time()}")
 BASE_DIR = Path(__file__).resolve().parent
 SAMPLE_PATH = BASE_DIR / "sample_candidates.jsonl"
 JD_PATH = BASE_DIR / "data" / "job_description.txt"
@@ -143,7 +144,10 @@ CSS = """
 .gr-dataframe td:last-child { min-width: 380px; white-space: normal !important; word-wrap: break-word; }
 """
 
-with gr.Blocks(title="Redrob Ranker Sandbox") as demo:
+with gr.Blocks(
+    title="Redrob Ranker Sandbox",
+    css=CSS
+) as demo:
 
     gr.Markdown(f"""
 # 🎯 Redrob Hackathon Track 1 — Candidate Ranker Sandbox
@@ -189,7 +193,6 @@ live — same code as the GitHub repo, no shortcuts.
         inputs=[file_input, top_n_input],
         outputs=[output_table, summary_output, pipeline_output, download_button],
     )
-
     demo.load(
         fn=run_ranking,
         inputs=[file_input, top_n_input],
@@ -198,4 +201,8 @@ live — same code as the GitHub repo, no shortcuts.
 
 
 if __name__ == "__main__":
-    demo.launch(css=CSS)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        ssr_mode=False
+    )
