@@ -1,5 +1,9 @@
 # Redrob Intelligent Candidate Ranking — Track 1 Submission
 
+**Repo:** https://github.com/mark392a-ux/redrob-ranker
+**Live sandbox:** https://huggingface.co/spaces/Pantheon00/redrob-ranker
+**Team:** Bharat_Vani (solo)
+
 ## What this is
 
 A hybrid ranker for the Redrob "Intelligent Candidate Discovery & Ranking
@@ -7,12 +11,23 @@ Challenge" (Track 1, Data & AI Challenge). It scores all 100K candidates
 against the Senior AI Engineer JD and outputs the top 100, ranked, with a
 1-2 sentence reasoning per candidate.
 
+## Results at a glance
+
+| Metric | Value |
+|---|---|
+| Pool size | 100,000 candidates |
+| Runtime (CPU, no GPU/network) | ~55-70s |
+| Peak memory | ~3.5 GB |
+| Honeypots flagged | 61 (target: ~80) |
+| Top-100 composition | Cleanly dominated by on-target AI/ML titles (NLP Engineer, ML Engineer, Search Engineer, Recommendation Systems Engineer, etc.) |
+| Validator | Passes `validate_submission.py` cleanly |
+
 ## Quick start
 
 ```bash
 pip install -r requirements.txt
-python rank.py --candidates /path/to/candidates.jsonl --out submission.csv
-python validate_submission.py submission.csv   # validator from the hackathon bundle
+python rank.py --candidates /path/to/candidates.jsonl --out Bharat_Vani.csv
+python validate_submission.py Bharat_Vani.csv   # validator from the hackathon bundle
 ```
 
 Also accepts the gzipped form directly: `--candidates candidates.jsonl.gz`.
@@ -23,6 +38,33 @@ for a fast smoke test:
 ```bash
 python rank.py --candidates test_data/sample_candidates.jsonl --out test_out.csv --top 20
 ```
+
+> **Note on `candidates.jsonl`:** the 100K-candidate dataset itself is not
+> included in this repo (it's organizer-provided, ~465MB uncompressed —
+> well past what should live in a git repo, and not original work to
+> redistribute). Supply your own copy from the hackathon bundle to run
+> `rank.py` against the full pool. `.gitignore` excludes it explicitly so
+> it's never accidentally committed.
+
+## Honeypot flag types — what each check catches
+
+| Flag | What it checks | Why it's a honeypot signal |
+|---|---|---|
+| `skill_zero_usage` | 3+ skills marked expert/advanced with `duration_months == 0` | Nobody is an "expert" at something used for zero months. Threshold (≥3) was tuned empirically: the real pool's distribution is cleanly bimodal — candidates have either 0 such skills or exactly 3-5, nothing in between |
+| `yoe_mismatch` | Stated `years_of_experience` differs from the sum of `career_history` durations by 2+ years | A profile claiming 12 years whose listed jobs add up to 4 doesn't add up |
+| `date_math_mismatch` | A career entry's start/end dates don't support its own stated `duration_months` (off by 3+ months) | The record contradicts itself using only its own fields |
+| `education_timeline_impossible` | Claims more years of experience than years since graduation (+2yr buffer) | Can't have 15 years of work experience having graduated 3 years ago |
+| `overlapping_roles` | Two career entries have overlapping date ranges | Can't hold two full-time roles simultaneously |
+| `multiple_current_roles` | More than one `is_current: true` entry | Same issue as above, different shape |
+| `education_date_order` | An education entry's `end_year` is before its `start_year` | Self-contradictory on its own |
+
+Any one of the *hard* checks (date math, overlapping roles, multiple
+current roles, education date order, skill zero usage) is enough to flag
+a profile alone. The two *soft* checks (yoe mismatch, education timeline)
+need to co-occur with something else, since either alone could in
+principle describe an unusual but real career. See `src/honeypot.py` for
+the exact logic and `diagnose_skills.py` / `diagnose_extra.py` for the
+empirical investigation that shaped these thresholds.
 
 ## Architecture
 
@@ -97,6 +139,16 @@ the 5-minute budget at 100K scale and violate the network constraint.
 Building it from the same extracted features the scorer used also means
 it structurally can't hallucinate a skill the candidate doesn't have,
 which is exactly what Stage 4's "no hallucination" check looks for.
+
+## Live sandbox
+
+https://huggingface.co/spaces/Pantheon00/redrob-ranker — runs the exact
+same `src/` modules as this repo (synced copies, not a reimplementation).
+Upload a `.json`/`.jsonl` candidate file (capped at 500 for a fast
+interactive demo per the hackathon's "small sample" sandbox requirement)
+or use the bundled 50-candidate sample. Shows honeypot screening
+results, a flag-type breakdown, the ranked table with full reasoning
+text, and a CSV download of the demo run's output.
 
 ## Performance at 100K scale
 
