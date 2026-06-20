@@ -1,10 +1,7 @@
 # Redrob Intelligent Candidate Ranking — Track 1 Submission
 
-**Repo:** 
-https://github.com/mark392a-ux/redrob-ranker
-
 **Live sandbox:**
-https://huggingface.co/spaces/Pantheon00/redrob-ranker
+https://pantheon00-redrob-ranker.hf.space/
 
 **Team:**
 Bharat_Vani (solo)
@@ -170,7 +167,7 @@ stuffing guarantee, disqualifier penalties, and score bounds).
 
 ## Live sandbox
 
-https://huggingface.co/spaces/Pantheon00/redrob-ranker — runs the exact
+https://pantheon00-redrob-ranker.hf.space/ — runs the exact
 same `src/` modules as this repo (synced copies, not a reimplementation).
 Upload a `.json`/`.jsonl` candidate file (capped at 500 for a fast
 interactive demo per the hackathon's "small sample" sandbox requirement)
