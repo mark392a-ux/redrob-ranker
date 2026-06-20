@@ -1,5 +1,17 @@
 # Redrob Intelligent Candidate Ranking — Track 1 Submission
 
+**Repo:**  
+[GitHub Repository](https://github.com/mark392a-ux/redrob-ranker)
+
+**Live Sandbox:**  
+[Hugging Face Space](https://huggingface.co/spaces/Pantheon00/redrob-ranker)
+
+**Team:**  
+Bharat_Vani (solo)
+
+**Submitted by:**  
+Ankit Mishra
+
 **Live sandbox:**
 https://pantheon00-redrob-ranker.hf.space/
 
