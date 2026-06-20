@@ -1,7 +1,7 @@
 # Redrob Intelligent Candidate Ranking — Track 1 Submission
 
 **Repo:**  
-(https://github.com/mark392a-ux/redrob-ranker)
+https://github.com/mark392a-ux/redrob-ranker
 
 **Live sandbox:**
 https://pantheon00-redrob-ranker.hf.space/
